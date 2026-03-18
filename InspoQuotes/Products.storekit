@@ -26,7 +26,7 @@
         }
       ],
       "productID" : "com.muttineer.InspoQuotes.PremiumQuotes",
-      "referenceName" : "ExtraQuotes",
+      "referenceName" : "Premium Quotes",
       "type" : "NonConsumable"
     }
   ],

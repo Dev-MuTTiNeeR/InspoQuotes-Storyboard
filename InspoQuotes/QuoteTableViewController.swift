@@ -2,18 +2,19 @@
 //  QuoteTableViewController.swift
 //  InspoQuotes
 //
-//  Created by Angela Yu on 18/08/2018.
-//  Copyright © 2018 London App Brewery. All rights reserved.
+//  Created by Dev-MuTTiNeeR on 13/03/2026.
+//  Copyright © 2026. All rights reserved.
 //
 
 import UIKit
 import StoreKit
 
-class QuoteTableViewController: UITableViewController, SKPaymentTransactionObserver {
+class QuoteTableViewController: UITableViewController {
     
+    // MARK: - Properties
     let productID = "com.muttineer.InspoQuotes.PremiumQuotes"
     
-    var quotesToShow = [
+    let freeQuotes = [
         "Our greatest glory is not in never falling, but in rising every time we fall. — Confucius",
         "All our dreams can come true, if we have the courage to pursue them. – Walt Disney",
         "It does not matter how slowly you go as long as you do not stop. – Confucius",
@@ -31,37 +32,48 @@ class QuoteTableViewController: UITableViewController, SKPaymentTransactionObser
         "Believe in yourself, take on your challenges, dig deep within yourself to conquer fears. Never let anyone bring you down. You got to keep going. – Chantal Sutherland"
     ]
 
+    // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         
         SKPaymentQueue.default().add(self)
         
         if isPurchased() {
-            showPremiumQuotes()
+            navigationItem.setRightBarButton(nil, animated: false)
         }
+    }
+    
+    deinit {
+        SKPaymentQueue.default().remove(self)
     }
 
     // MARK: - Table view data source
-
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         if isPurchased() {
-            return quotesToShow.count
+            return freeQuotes.count + premiumQuotes.count
         } else {
-            return quotesToShow.count + 1
+            return freeQuotes.count + 1
         }
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "QuoteCell", for: indexPath)
+        cell.textLabel?.numberOfLines = 0
         
-        if indexPath.row < quotesToShow.count {
-            cell.textLabel?.text = quotesToShow[indexPath.row]
-            cell.textLabel?.numberOfLines = 0
-            cell.textLabel?.textColor = #colorLiteral(red: 0, green: 0, blue: 0, alpha: 1)
+        if indexPath.row < freeQuotes.count {
+            cell.textLabel?.text = freeQuotes[indexPath.row]
+            cell.textLabel?.textColor = .label
             cell.accessoryType = .none
+            
+        } else if isPurchased() {
+            let premiumIndex = indexPath.row - freeQuotes.count
+            cell.textLabel?.text = premiumQuotes[premiumIndex]
+            cell.textLabel?.textColor = UIColor(red: 0.1, green: 0.3, blue: 0.4, alpha: 1.0) // Premium için özel renk
+            cell.accessoryType = .none
+            
         } else {
             cell.textLabel?.text = "Get more Quotes"
-            cell.textLabel?.textColor = #colorLiteral(red: 0.1764705926, green: 0.4980392158, blue: 0.7568627596, alpha: 1)
+            cell.textLabel?.textColor = UIColor(red: 0.176, green: 0.498, blue: 0.756, alpha: 1.0) // Modern renk tanımlaması
             cell.accessoryType = .disclosureIndicator
         }
         
@@ -69,16 +81,16 @@ class QuoteTableViewController: UITableViewController, SKPaymentTransactionObser
     }
     
     // MARK: - Table View Delegate Methods
-    
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        if indexPath.row == quotesToShow.count {
+        if indexPath.row == freeQuotes.count && !isPurchased() {
             buyPremiumQuotes()
         }
-        
         tableView.deselectRow(at: indexPath, animated: true)
     }
-    
-    // MARK: - In-App Purchase Methods
+}
+
+// MARK: - StoreKit In-App Purchase Methods
+extension QuoteTableViewController: SKPaymentTransactionObserver {
     
     func buyPremiumQuotes() {
         if SKPaymentQueue.canMakePayments() {
@@ -86,44 +98,38 @@ class QuoteTableViewController: UITableViewController, SKPaymentTransactionObser
             paymentRequest.productIdentifier = productID
             SKPaymentQueue.default().add(paymentRequest)
         } else {
-            // Can't make payments
-            print("User can't make payments")
+            print("Kullanıcının satın alma yetkisi yok (Ebeveyn kontrolü vs.)")
         }
     }
     
     func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
         for transaction in transactions {
-            
-            if transaction.transactionState == .purchased {
-                // User paymet successful
-                print("Transaction successful!")
-                
-                showPremiumQuotes()
-                
+            switch transaction.transactionState {
+            case .purchased:
+                print("Satın alma başarılı!")
+                handleSuccessfulPurchase()
                 SKPaymentQueue.default().finishTransaction(transaction)
                 
-            } else if transaction.transactionState == .failed {
-                // Payment failed
-                if let error = transaction.error {
-                    let errorDescription = error.localizedDescription
-                    print("Transaction failed due to error: \(errorDescription)")
-                    
-                } else if transaction.transactionState == .restored {
-                    showPremiumQuotes()
-                    
-                    print("Transaction restored")
-                    navigationItem.setRightBarButton(nil, animated: true)
-                    SKPaymentQueue.default().finishTransaction(transaction)
-                }
-                
+            case .failed:
+                print("İşlem başarısız: \(transaction.error?.localizedDescription ?? "Bilinmeyen Hata")")
                 SKPaymentQueue.default().finishTransaction(transaction)
+                
+            case .restored:
+                print("Geçmiş satın alımlar geri yüklendi!")
+                handleSuccessfulPurchase()
+                SKPaymentQueue.default().finishTransaction(transaction)
+                
+            case .deferred, .purchasing:
+                break
+            @unknown default:
+                break
             }
         }
     }
     
-    func showPremiumQuotes() {
+    private func handleSuccessfulPurchase() {
         UserDefaults.standard.set(true, forKey: productID)
-        quotesToShow.append(contentsOf: premiumQuotes)
+        navigationItem.setRightBarButton(nil, animated: true)
         tableView.reloadData()
     }
     
@@ -131,17 +137,8 @@ class QuoteTableViewController: UITableViewController, SKPaymentTransactionObser
         SKPaymentQueue.default().restoreCompletedTransactions()
     }
     
-    func isPurchased() -> Bool {
-        let purchaseStatus = UserDefaults.standard.bool(forKey: productID)
-        
-        if purchaseStatus {
-            print("Previosly purchased")
-            return true
-        } else {
-            print("Never purchased")
-            return false
-        }
+    // MARK: - Helpers
+    private func isPurchased() -> Bool {
+        return UserDefaults.standard.bool(forKey: productID)
     }
-
-
 }

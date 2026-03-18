@@ -7,8 +7,11 @@
 //
 
 import UIKit
+import StoreKit
 
-class QuoteTableViewController: UITableViewController {
+class QuoteTableViewController: UITableViewController, SKPaymentTransactionObserver {
+    
+    let productID = "com.muttineer.InspoQuotes.PremiumQuotes"
     
     var quotesToShow = [
         "Our greatest glory is not in never falling, but in rising every time we fall. — Confucius",
@@ -31,24 +34,65 @@ class QuoteTableViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        tableView.dataSource = self
-        
+        SKPaymentQueue.default().add(self)
     }
 
     // MARK: - Table view data source
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return quotesToShow.count
+        return quotesToShow.count + 1
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "QuoteCell", for: indexPath)
         
+        if indexPath.row < quotesToShow.count {
+            cell.textLabel?.text = quotesToShow[indexPath.row]
+            cell.textLabel?.numberOfLines = 0
+        } else {
+            cell.textLabel?.text = "Get more Quotes"
+            cell.textLabel?.textColor = #colorLiteral(red: 0.1764705926, green: 0.4980392158, blue: 0.7568627596, alpha: 1)
+            cell.accessoryType = .disclosureIndicator
+        }
+        
+        return cell
     }
-
     
+    // MARK: - Table View Delegate Methods
     
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        if indexPath.row == quotesToShow.count {
+            buyPremiumQuotes()
+        }
+        
+        tableView.deselectRow(at: indexPath, animated: true)
+    }
     
+    // MARK: - In-App Purchase Methods
     
+    func buyPremiumQuotes() {
+        if SKPaymentQueue.canMakePayments() {
+            let paymentRequest = SKMutablePayment()
+            paymentRequest.productIdentifier = productID
+            SKPaymentQueue.default().add(paymentRequest)
+        } else {
+            // Can't make payments
+            print("User can't make payments")
+        }
+    }
+    
+    func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
+        for transaction in transactions {
+            
+            if transaction.transactionState == .purchased {
+                // User paymet successful
+                print("Transaction successful!")
+            } else if transaction.transactionState == .failed {
+                // Payment failed
+                print("Transaction failed!")
+            }
+        }
+    }
     
     @IBAction func restorePressed(_ sender: UIBarButtonItem) {
         

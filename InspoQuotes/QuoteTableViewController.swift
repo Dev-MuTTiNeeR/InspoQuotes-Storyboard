@@ -31,7 +31,7 @@ class QuoteTableViewController: UITableViewController {
         "Your true success in life begins only when you make the commitment to become excellent at what you do. — Brian Tracy",
         "Believe in yourself, take on your challenges, dig deep within yourself to conquer fears. Never let anyone bring you down. You got to keep going. – Chantal Sutherland"
     ]
-
+    
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -46,7 +46,7 @@ class QuoteTableViewController: UITableViewController {
     deinit {
         SKPaymentQueue.default().remove(self)
     }
-
+    
     // MARK: - Table view data source
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         if isPurchased() {
@@ -68,7 +68,7 @@ class QuoteTableViewController: UITableViewController {
         } else if isPurchased() {
             let premiumIndex = indexPath.row - freeQuotes.count
             cell.textLabel?.text = premiumQuotes[premiumIndex]
-            cell.textLabel?.textColor = UIColor(red: 0.1, green: 0.3, blue: 0.4, alpha: 1.0) // Premium için özel renk
+            cell.textLabel?.textColor = .label
             cell.accessoryType = .none
             
         } else {
@@ -98,7 +98,7 @@ extension QuoteTableViewController: SKPaymentTransactionObserver {
             paymentRequest.productIdentifier = productID
             SKPaymentQueue.default().add(paymentRequest)
         } else {
-            print("Kullanıcının satın alma yetkisi yok (Ebeveyn kontrolü vs.)")
+            print("The user does not have purchasing authority (parental control, etc.)")
         }
     }
     
@@ -106,16 +106,16 @@ extension QuoteTableViewController: SKPaymentTransactionObserver {
         for transaction in transactions {
             switch transaction.transactionState {
             case .purchased:
-                print("Satın alma başarılı!")
+                print("Purchase successful!")
                 handleSuccessfulPurchase()
                 SKPaymentQueue.default().finishTransaction(transaction)
                 
             case .failed:
-                print("İşlem başarısız: \(transaction.error?.localizedDescription ?? "Bilinmeyen Hata")")
+                print("Operation failed: \(transaction.error?.localizedDescription ?? "Unknown Error")")
                 SKPaymentQueue.default().finishTransaction(transaction)
                 
             case .restored:
-                print("Geçmiş satın alımlar geri yüklendi!")
+                print("Past purchases have been restored!")
                 handleSuccessfulPurchase()
                 SKPaymentQueue.default().finishTransaction(transaction)
                 
@@ -129,8 +129,23 @@ extension QuoteTableViewController: SKPaymentTransactionObserver {
     
     private func handleSuccessfulPurchase() {
         UserDefaults.standard.set(true, forKey: productID)
-        navigationItem.setRightBarButton(nil, animated: true)
-        tableView.reloadData()
+        
+        DispatchQueue.main.async {
+            self.navigationItem.setRightBarButton(nil, animated: true)
+            self.tableView.reloadData()
+        }
+    }
+    
+    func paymentQueueRestoreCompletedTransactionsFinished(_ queue: SKPaymentQueue) {
+        if queue.transactions.isEmpty {
+            print("Apple said: No purchases were found to restore on this account.")
+        } else {
+            print("The restoration process was successfully completed!")
+        }
+    }
+    
+    func paymentQueue(_ queue: SKPaymentQueue, restoreCompletedTransactionsFailedWithError error: any Error) {
+        print("Restore failed. Error: \(error.localizedDescription)")
     }
     
     @IBAction func restorePressed(_ sender: UIBarButtonItem) {

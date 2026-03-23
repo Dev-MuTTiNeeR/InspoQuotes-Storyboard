@@ -27,4 +27,4 @@ To test the In-App Purchases locally without needing an Apple Developer Account:
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/InspoQuotes.git
+   git clone https://github.com/cemakkaya-dev/InspoQuotes.git
